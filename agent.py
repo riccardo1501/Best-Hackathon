@@ -17,4 +17,4 @@ class Agent:
 
 
 def create_agents():
-    pass
+    print(1)
