@@ -1,7 +1,7 @@
 import openai
 
 # Initialize the OpenAI client and pass the API key directly
-client = openai.OpenAI(api_key="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")
+client = openai.OpenAI(api_key="")
 
 import json
 # Import the Agent class from the agent module
