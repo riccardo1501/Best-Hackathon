@@ -1,55 +1,52 @@
 import openai
+
+# Initialize the OpenAI client and pass the API key directly
+client = openai.OpenAI(api_key="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")
+
 import json
 # Import the Agent class from the agent module
 from agent import Agent
 from product import Product, get_products
 from typing import List
 
-# Define the API key as a global variable
-API_KEY = "your_openai_api_key_here"  # Replace with your actual API key
-
 def get_prompt(agent: Agent, products: List[Product]):
-    prompt = f"""
+    system_prompt = f"""
 You are a {agent.age}-year-old person looking to buy a powerbank on Amazon. You need it for {agent.use_case}. 
 You’re {'' if agent.tech_savvy else 'not very ' }familiar with tech and {'do' if agent.tech_savvy else "don't " }understand the technical aspects. 
 You {'' if agent.brand_conscious else "don't " }know about powerbank brands and you {'' if agent.brand_conscious else "don't " }care about the brand. 
-You plan to use your powerbank to charge your {', '.join(agent.devices)}.
+You plan to use your powerbank to charge your {', '.join(agent.devices)}."""
 
-Now, you are browsing through a list of powerbanks on Amazon. Consider the options available based on your preferences, and choose the one you would purchase. 
+    user_prompt = f"""Now, you are browsing through a list of powerbanks on Amazon. Consider the options available based on your preferences, and choose the one you would purchase. 
 Explain why you would select it, taking into account factors such as charging speed, compatibility with your devices, and overall value.
 
-Here are some options you are considering:
-
-"""
+Here are some options you are considering:"""
 
     # Add the product strings (using the __str__ method for each product)
+    i = 1
     for product in products:
-        prompt += f"\n{product}\n"  # Each product's detailed string representation
+        user_prompt += f"i.\n{product}\n"  # Each product's detailed string representation
+        i += 1
 
-    return prompt
+    return system_prompt, user_prompt
+
+from pydantic import BaseModel
+class Purchase(BaseModel):
+    product_number: int
+    reason_to_buy: str
 
 
-def call_gpt35_api(prompt: str) -> dict:
-    # Set the OpenAI API key using the global variable
-    openai.api_key = API_KEY
-    
-    try:
-        # Make the API call to GPT-3.5
-        response = openai.Completion.create(
-            engine="text-davinci-003",  # GPT-3.5 engine
-            prompt=prompt,
-            max_tokens=100,  # Adjust max tokens as needed
-            n=1,  # Number of completions to generate
-            stop=None,  # Stop sequences (if any)
-            temperature=0.7  # Controls randomness
-        )
-        
-        # Return the response as a JSON object
-        return response
-
-    except Exception as e:
-        print(f"Error calling GPT-3.5 API: {e}")
-        return {"error": str(e)}
+def call_gpt(system_prompt: str, user_prompt: str) -> tuple: 
+    completion = client.beta.chat.completions.parse(
+    model="gpt-4o-2024-08-06",
+    messages=[
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ],
+    response_format=Purchase,
+    temperature=0.5,
+)
+    purchase = completion.choices[0].message.parsed
+    return purchase.product_number, purchase.reason_to_buy
 
 # Example usage
 if __name__ == "__main__":
@@ -62,9 +59,9 @@ if __name__ == "__main__":
     devices=["mobile", "laptop"]
 )   
     products = get_products("./products.json")
-    prompt = get_prompt(agent, products)
-    print(prompt)
-    #response_json = call_gpt35_api(prompt)
+    system_prompt, user_prompt = get_prompt(agent, products)
+    product_number, reason_to_buy = call_gpt(system_prompt, user_prompt)
+    print(product_number, reason_to_buy)
 
     # Print the response JSON in a pretty format
     #print(json.dumps(response_json, indent=2))
